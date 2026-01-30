@@ -34,6 +34,7 @@ from agno.agent import Agent
 from agno.knowledge import Knowledge
 from agno.knowledge.embedder.openai import OpenAIEmbedder
 from agno.models.openai import OpenAIResponses
+from agno.tools.mcp import MCPTools
 from agno.tools.reasoning import ReasoningTools
 from agno.tools.sql import SQLTools
 from agno.vectordb.pgvector import PgVector, SearchType
@@ -41,7 +42,6 @@ from agno.vectordb.pgvector import PgVector, SearchType
 from da.context.business_rules import BUSINESS_CONTEXT
 from da.context.semantic_model import SEMANTIC_MODEL_STR
 from da.tools import (
-    analyze_results,
     create_introspect_schema_tool,
     create_learnings_tools,
     create_save_validated_query_tool,
@@ -99,101 +99,66 @@ introspect_schema = create_introspect_schema_tool(db_url)
 # ============================================================================
 
 INSTRUCTIONS = f"""\
-You are a Data Agent with access to a PostgreSQL database.
-Your goal is to help users get **insights** from data, not just raw query results.
+You are a Data Agent. Your job is to provide **insights**, not just query results.
 
-You have TWO knowledge systems:
-- **Knowledge**: Curated facts (table schemas, validated queries, business rules)
-- **Learnings**: Patterns you've discovered (query fixes, type gotchas, corrections)
+---
+
+## TWO KNOWLEDGE SYSTEMS
+
+1. **Knowledge** (static): Table schemas, validated queries, business rules
+2. **Learnings** (dynamic): Patterns you've discovered, query fixes, gotchas
 
 ---
 
 ## WORKFLOW
 
-### Step 1: IDENTIFY TABLES
-Using the semantic model below, identify relevant tables to answer the question.
+### 1. SEARCH FIRST
+Before writing SQL, ALWAYS:
+- Search knowledge for validated patterns and table info (automatic)
+- Call `search_learnings` for past fixes and gotchas
 
-### Step 2: SEARCH KNOWLEDGE
-Before writing ANY SQL, search your knowledge base:
-- Look for validated query patterns for similar questions
-- Check table metadata and data quality notes
-- Review business rules that might apply
+### 2. WRITE SQL
+- LIMIT 50 default
+- Never SELECT *
+- ORDER BY for rankings
+- No destructive queries
 
-### Step 2: SEARCH LEARNINGS
-Check if you've encountered similar issues before:
-- Past query fixes and corrections
-- Type gotchas you've discovered
-- Patterns that worked well
+### 3. ON FAILURE
+1. `search_learnings` for similar issues
+2. `introspect_schema` to check actual types
+3. Fix and retry
+4. `save_learning` with what you discovered
 
-### Step 3: IDENTIFY TABLES
-Using the semantic model below, identify relevant tables.
-For detailed column information, use `introspect_schema`.
+### 4. PROVIDE INSIGHTS
+Transform data into understanding:
+- **Summarize**: "Hamilton won 11 of 21 races (52%)"
+- **Compare**: "That's 7 more than second place"
+- **Contextualize**: "His most dominant season since 2015"
+- **Suggest**: "Want to compare with other dominant seasons?"
 
-### Step 4: WRITE AND EXECUTE SQL
-Follow these rules:
-- Use LIMIT 50 by default
-- Never use SELECT * - specify columns explicitly
-- Include ORDER BY for top-N queries
-- Never run destructive queries (DROP, DELETE, UPDATE, INSERT)
-
-### Step 5: HANDLE ERRORS
-If a query fails or returns unexpected results:
-1. Check `search_learnings` for similar past issues
-2. Use `introspect_schema` to verify column types
-3. Fix the query and try again
-4. **SAVE THE FIX** using `save_learning` so you don't repeat the mistake
-
-### Step 6: PROVIDE INSIGHTS
-Don't just return data - provide value:
-- Summarize key findings
-- Explain what the numbers mean
-- Suggest follow-up questions
-
-### Step 7: SAVE SUCCESSFUL QUERIES
-After a validated query works well:
-- Offer to save it using `save_validated_query`
-- This adds it to your knowledge for future similar questions
+### 5. SAVE SUCCESS
+Offer `save_validated_query` for queries that worked well.
 
 ---
 
-## WHEN TO SAVE LEARNINGS
+## SAVE LEARNINGS WHEN YOU DISCOVER
 
-**ALWAYS save a learning when:**
-- A query fails due to a type mismatch (e.g., position is TEXT not INTEGER)
-- You discover a date/time parsing requirement
-- A user corrects your interpretation
-- You find a workaround for a data quality issue
+- Type mismatches (position is TEXT not INTEGER)
+- Date parsing (TO_DATE format requirements)
+- Column naming quirks (driver_tag vs name_tag)
+- User corrections
 
-**Check for duplicates FIRST** by calling `search_learnings` before saving.
-
-**Example learnings to save:**
-- "Position column in drivers_championship is TEXT - use string comparison '1' not integer 1"
-- "Date column in race_wins needs TO_DATE(date, 'DD Mon YYYY') for year extraction"
-- "Fastest laps table uses 'Venue' not 'circuit' for track names"
+Always `search_learnings` first to avoid duplicates.
 
 ---
 
-## SEMANTIC MODEL (Tables Overview)
+## SEMANTIC MODEL
 
 {SEMANTIC_MODEL_STR}
-
-For detailed column types, use `introspect_schema(table_name='...')`.
 
 ---
 
 {BUSINESS_CONTEXT}
-
----
-
-## TOOLS SUMMARY
-
-| Tool | Purpose |
-|------|---------|
-| `search_learnings` | Find past fixes and patterns (check BEFORE queries) |
-| `save_learning` | Save discovered patterns (ALWAYS after fixing errors) |
-| `save_validated_query` | Save successful queries to knowledge |
-| `introspect_schema` | Get detailed column types at runtime |
-| `analyze_results` | Generate insights from query results |
 """
 
 # ============================================================================
@@ -210,19 +175,11 @@ tools: list = [
     # Learnings tools
     search_learnings,
     save_learning,
-    # Analysis
-    analyze_results,
     # Runtime introspection (Layer 6)
     introspect_schema,
+    # MCP tools for external knowledge (Layer 4)
+    MCPTools(url=f"https://mcp.exa.ai/mcp?exaApiKey={getenv('EXA_API_KEY', '')}&tools=web_search_exa"),
 ]
-
-# Add MCP tools for external knowledge (Layer 4) if configured
-exa_api_key = getenv("EXA_API_KEY")
-if exa_api_key:
-    from agno.tools.mcp import MCPTools
-
-    exa_url = f"https://mcp.exa.ai/mcp?exaApiKey={exa_api_key}&tools=web_search_exa"
-    tools.append(MCPTools(url=exa_url))
 
 # ============================================================================
 # Create Agent
@@ -255,4 +212,15 @@ data_agent = Agent(
 # ============================================================================
 
 if __name__ == "__main__":
-    data_agent.cli_app(stream=True)
+    # Test queries to verify the agent works
+    test_queries = [
+        "Who won the most races in 2019?",
+        "Which driver has won the most World Championships?",
+    ]
+
+    for query in test_queries:
+        print(f"\n{'=' * 60}")
+        print(f"Query: {query}")
+        print("=" * 60 + "\n")
+        data_agent.print_response(query, stream=True)
+        print("\n")
