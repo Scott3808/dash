@@ -8,7 +8,6 @@ anyio==4.12.1
 attrs==25.4.0
 certifi==2026.1.4
 cffi==2.0.0
-charset-normalizer==3.4.4
 click==8.3.1
 cryptography==46.0.4
 distro==1.9.0
@@ -65,7 +64,6 @@ python-dotenv==1.2.1
 python-multipart==0.0.22
 pyyaml==6.0.3
 referencing==0.37.0
-requests==2.32.5
 rich==14.3.1
 rich-toolkit==0.17.2
 rignore==0.7.6
