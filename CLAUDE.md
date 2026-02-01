@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Dash is a self-learning data agent that delivers **insights, not just SQL results**. It grounds SQL generation in 6 layers of context and improves automatically with every query. Inspired by [OpenAI's in-house data agent](https://openai.com/index/how-openai-built-its-data-agent/).
+Dash is a self-learning data agent that delivers **insights, not just SQL results**. It grounds SQL generation in 6 layers of context and improves automatically with every query. Inspired by [OpenAI's in-house data agent](https://openai.com/index/inside-our-in-house-data-agent/).
 
 ## Structure
 

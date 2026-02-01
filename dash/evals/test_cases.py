@@ -35,11 +35,11 @@ TEST_CASES: list[TestCase] = [
         expected_strings=["Hamilton", "11"],
         category="basic",
         golden_sql="""
-            SELECT driver, COUNT(*) as wins
+            SELECT name, COUNT(*) as wins
             FROM race_wins
             WHERE TO_DATE(date, 'DD Mon YYYY') >= '2019-01-01'
               AND TO_DATE(date, 'DD Mon YYYY') < '2020-01-01'
-            GROUP BY driver
+            GROUP BY name
             ORDER BY wins DESC
             LIMIT 1
         """,
@@ -49,7 +49,7 @@ TEST_CASES: list[TestCase] = [
         expected_strings=["Mercedes"],
         category="basic",
         golden_sql="""
-            SELECT constructor
+            SELECT team
             FROM constructors_championship
             WHERE year = 2020 AND position = 1
         """,
@@ -59,7 +59,7 @@ TEST_CASES: list[TestCase] = [
         expected_strings=["Hamilton"],
         category="basic",
         golden_sql="""
-            SELECT driver
+            SELECT name
             FROM drivers_championship
             WHERE year = 2020 AND position = '1'
         """,
@@ -69,7 +69,7 @@ TEST_CASES: list[TestCase] = [
         expected_strings=["21"],
         category="basic",
         golden_sql="""
-            SELECT COUNT(DISTINCT race) as race_count
+            SELECT COUNT(DISTINCT venue) as race_count
             FROM race_wins
             WHERE TO_DATE(date, 'DD Mon YYYY') >= '2019-01-01'
               AND TO_DATE(date, 'DD Mon YYYY') < '2020-01-01'
@@ -82,10 +82,10 @@ TEST_CASES: list[TestCase] = [
         expected_strings=["Schumacher", "7"],
         category="aggregation",
         golden_sql="""
-            SELECT driver, COUNT(*) as titles
+            SELECT name, COUNT(*) as titles
             FROM drivers_championship
             WHERE position = '1'
-            GROUP BY driver
+            GROUP BY name
             ORDER BY titles DESC
             LIMIT 1
         """,
@@ -95,10 +95,10 @@ TEST_CASES: list[TestCase] = [
         expected_strings=["Ferrari"],
         category="aggregation",
         golden_sql="""
-            SELECT constructor, COUNT(*) as titles
+            SELECT team, COUNT(*) as titles
             FROM constructors_championship
             WHERE position = 1
-            GROUP BY constructor
+            GROUP BY team
             ORDER BY titles DESC
             LIMIT 1
         """,
@@ -108,10 +108,10 @@ TEST_CASES: list[TestCase] = [
         expected_strings=["Schumacher"],
         category="aggregation",
         golden_sql="""
-            SELECT driver, COUNT(*) as fastest_laps
+            SELECT name, COUNT(*) as fastest_laps
             FROM fastest_laps
-            WHERE race = 'Monaco Grand Prix'
-            GROUP BY driver
+            WHERE venue = 'Monaco'
+            GROUP BY name
             ORDER BY fastest_laps DESC
             LIMIT 1
         """,
@@ -123,7 +123,7 @@ TEST_CASES: list[TestCase] = [
         golden_sql="""
             SELECT COUNT(*) as wins
             FROM race_wins
-            WHERE driver = 'Lewis Hamilton'
+            WHERE name = 'Lewis Hamilton'
         """,
     ),
     TestCase(
@@ -131,9 +131,9 @@ TEST_CASES: list[TestCase] = [
         expected_strings=["Ferrari"],
         category="aggregation",
         golden_sql="""
-            SELECT constructor, COUNT(*) as wins
+            SELECT team, COUNT(*) as wins
             FROM race_wins
-            GROUP BY constructor
+            GROUP BY team
             ORDER BY wins DESC
             LIMIT 1
         """,
@@ -144,17 +144,17 @@ TEST_CASES: list[TestCase] = [
         expected_strings=["Bottas"],
         category="data_quality",
         golden_sql="""
-            SELECT driver
+            SELECT name
             FROM drivers_championship
             WHERE year = 2019 AND position = '2'
         """,
     ),
     TestCase(
         question="Which team came third in the 2020 constructors championship?",
-        expected_strings=["Racing Point"],
+        expected_strings=["McLaren"],
         category="data_quality",
         golden_sql="""
-            SELECT constructor
+            SELECT team
             FROM constructors_championship
             WHERE year = 2020 AND position = 3
         """,
@@ -166,7 +166,7 @@ TEST_CASES: list[TestCase] = [
         golden_sql="""
             SELECT COUNT(*) as wins
             FROM race_wins
-            WHERE constructor = 'Ferrari'
+            WHERE team = 'Ferrari'
               AND TO_DATE(date, 'DD Mon YYYY') >= '2019-01-01'
               AND TO_DATE(date, 'DD Mon YYYY') < '2020-01-01'
         """,
@@ -190,11 +190,11 @@ TEST_CASES: list[TestCase] = [
         expected_strings=["Hamilton"],
         category="complex",
         golden_sql="""
-            SELECT driver, COUNT(*) as podiums
+            SELECT name, COUNT(*) as podiums
             FROM race_results
             WHERE position IN ('1', '2', '3')
               AND year = 2019
-            GROUP BY driver
+            GROUP BY name
             ORDER BY podiums DESC
             LIMIT 1
         """,
@@ -204,10 +204,10 @@ TEST_CASES: list[TestCase] = [
         expected_strings=["Schumacher"],
         category="complex",
         golden_sql="""
-            SELECT driver, COUNT(*) as wins
+            SELECT name, COUNT(*) as wins
             FROM race_wins
-            WHERE constructor = 'Ferrari'
-            GROUP BY driver
+            WHERE team = 'Ferrari'
+            GROUP BY name
             ORDER BY wins DESC
             LIMIT 1
         """,
@@ -224,12 +224,12 @@ TEST_CASES: list[TestCase] = [
         expected_strings=["Fangio"],
         category="edge_case",
         golden_sql="""
-            SELECT driver
+            SELECT name
             FROM (
-                SELECT driver, COUNT(*) as titles
+                SELECT name, COUNT(*) as titles
                 FROM drivers_championship
                 WHERE position = '1'
-                GROUP BY driver
+                GROUP BY name
             ) t
             WHERE titles = 5
         """,
