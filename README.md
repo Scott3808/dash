@@ -53,7 +53,7 @@ Dash solves this with **6 layers of grounded context**, a **self-learning loop**
 | Layer | Purpose | Source |
 |------|--------|--------|
 | **Table Usage** | Schema, columns, relationships | `knowledge/tables/*.json` |
-| **Business Rules** | Metrics, definitions, and gotchas | `knowledge/business/*.json` |
+| **Human Annotations** | Metrics, definitions, and business rules | `knowledge/business/*.json` |
 | **Query Patterns** | SQL that is known to work | `knowledge/queries/*.sql` |
 | **Institutional Knowledge** | Docs, wikis, external references | MCP (optional) |
 | **Learnings** | Error patterns and discovered fixes | Agno `Learning Machine` |
@@ -127,35 +127,26 @@ railway run python -m dash.scripts.load_knowledge
 ```
 
 **View logs:**
+
 ```sh
-railway logs --service dash-api
-railway logs --service dash-api -f  # Follow logs
+railway logs --service dash
 ```
 
 **Run commands in production:**
+
 ```sh
 railway run python -m dash  # CLI mode
 ```
 
-**Database access:**
-```sh
-railway connect dash-db  # Opens psql shell
-```
-
 **Redeploy after changes:**
+
 ```sh
-railway up --service dash-api -d
+railway up --service dash -d
 ```
 
 **Open dashboard:**
 ```sh
 railway open
-```
-
-**Stop services:**
-```sh
-railway down --service dash-api
-railway down --service dash-db
 ```
 
 ## Adding Knowledge
