@@ -2,23 +2,78 @@
 Database URL
 ============
 
-Build database connection URL from environment variables.
+Build database connection URLs from environment variables.
+
+Supports two databases:
+- DATA_DB_*: SQL Server for data queries (your business data)
+- AGENT_DB_*: PostgreSQL for agent state and vector storage
 """
 
 from os import getenv
 from urllib.parse import quote
 
+from dotenv import load_dotenv
 
-def build_db_url() -> str:
-    """Build database URL from environment variables."""
-    driver = getenv("DB_DRIVER", "postgresql+psycopg")
-    user = getenv("DB_USER", "ai")
-    password = quote(getenv("DB_PASS", "ai"), safe="")
-    host = getenv("DB_HOST", "localhost")
-    port = getenv("DB_PORT", "5432")
-    database = getenv("DB_DATABASE", "ai")
+load_dotenv()
+
+
+def build_data_db_url() -> str:
+    """Build SQL Server connection URL for data queries.
+
+    Environment variables:
+        DATA_DB_DRIVER: SQLAlchemy driver (default: mssql+pyodbc)
+        DATA_DB_HOST: Database host
+        DATA_DB_PORT: Database port (default: 1433)
+        DATA_DB_USER: Database user
+        DATA_DB_PASS: Database password
+        DATA_DB_DATABASE: Database name
+        DATA_DB_ODBC_DRIVER: ODBC driver name (default: ODBC Driver 17 for SQL Server)
+    """
+    driver = getenv("DATA_DB_DRIVER", "mssql+pyodbc")
+    host = getenv("DATA_DB_HOST", "localhost")
+    port = getenv("DATA_DB_PORT", "1433")
+    user = getenv("DATA_DB_USER", "sa")
+    password = quote(getenv("DATA_DB_PASS", ""), safe="")
+    database = getenv("DATA_DB_DATABASE", "master")
+    odbc_driver = getenv("DATA_DB_ODBC_DRIVER", "ODBC Driver 17 for SQL Server")
+
+    # Build base URL
+    base_url = f"{driver}://{user}:{password}@{host}:{port}/{database}"
+
+    # Add ODBC driver for pyodbc connections
+    if "pyodbc" in driver:
+        odbc_driver_encoded = quote(odbc_driver, safe="")
+        return f"{base_url}?driver={odbc_driver_encoded}"
+
+    return base_url
+
+
+def build_agent_db_url() -> str:
+    """Build PostgreSQL connection URL for agent state and vector storage.
+
+    Environment variables:
+        AGENT_DB_DRIVER: SQLAlchemy driver (default: postgresql+psycopg)
+        AGENT_DB_HOST: Database host (default: localhost)
+        AGENT_DB_PORT: Database port (default: 5432)
+        AGENT_DB_USER: Database user (default: ai)
+        AGENT_DB_PASS: Database password (default: ai)
+        AGENT_DB_DATABASE: Database name (default: ai)
+    """
+    driver = getenv("AGENT_DB_DRIVER", "postgresql+psycopg")
+    host = getenv("AGENT_DB_HOST", "localhost")
+    port = getenv("AGENT_DB_PORT", "5432")
+    user = getenv("AGENT_DB_USER", "ai")
+    password = quote(getenv("AGENT_DB_PASS", "ai"), safe="")
+    database = getenv("AGENT_DB_DATABASE", "ai")
 
     return f"{driver}://{user}:{password}@{host}:{port}/{database}"
 
 
-db_url = build_db_url()
+# Data database URL (SQL Server - for querying your data)
+data_db_url = build_data_db_url()
+
+# Agent database URL (PostgreSQL - for agent state and vector storage)
+agent_db_url = build_agent_db_url()
+
+# Legacy alias for backwards compatibility
+db_url = agent_db_url

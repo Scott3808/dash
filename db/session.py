@@ -2,18 +2,22 @@
 Database Session
 ================
 
-PostgreSQL database connection for AgentOS.
+Database connection factories for AgentOS.
+
+Uses two separate databases:
+- PostgreSQL for agent state and vector storage (requires pgvector)
+- SQL Server (or other) for data queries
 """
 
 from agno.db.postgres import PostgresDb
 
-from db.url import db_url
+from db.url import agent_db_url
 
 DB_ID = "dash-db"
 
 
 def get_postgres_db(contents_table: str | None = None) -> PostgresDb:
-    """Create a PostgresDb instance.
+    """Create a PostgresDb instance for agent state/vector storage.
 
     Args:
         contents_table: Optional table name for storing knowledge contents.
@@ -22,5 +26,5 @@ def get_postgres_db(contents_table: str | None = None) -> PostgresDb:
         Configured PostgresDb instance.
     """
     if contents_table is not None:
-        return PostgresDb(id=DB_ID, db_url=db_url, knowledge_table=contents_table)
-    return PostgresDb(id=DB_ID, db_url=db_url)
+        return PostgresDb(id=DB_ID, db_url=agent_db_url, knowledge_table=contents_table)
+    return PostgresDb(id=DB_ID, db_url=agent_db_url)

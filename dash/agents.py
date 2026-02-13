@@ -9,7 +9,7 @@ from os import getenv
 
 from agno.agent import Agent
 from agno.knowledge import Knowledge
-from agno.knowledge.embedder.openai import OpenAIEmbedder
+from agno.knowledge.embedder.fastembed import FastEmbedEmbedder
 from agno.learn import (
     LearnedKnowledgeConfig,
     LearningMachine,
@@ -17,7 +17,7 @@ from agno.learn import (
     UserMemoryConfig,
     UserProfileConfig,
 )
-from agno.models.openai import OpenAIResponses
+from agno.models.anthropic import Claude
 from agno.tools.mcp import MCPTools
 from agno.tools.reasoning import ReasoningTools
 from agno.tools.sql import SQLTools
@@ -26,7 +26,7 @@ from agno.vectordb.pgvector import PgVector, SearchType
 from dash.context.business_rules import BUSINESS_CONTEXT
 from dash.context.semantic_model import SEMANTIC_MODEL_STR
 from dash.tools import create_introspect_schema_tool, create_save_validated_query_tool
-from db import db_url, get_postgres_db
+from db import agent_db_url, data_db_url, get_postgres_db
 
 # ============================================================================
 # Database & Knowledge
@@ -35,25 +35,27 @@ from db import db_url, get_postgres_db
 agent_db = get_postgres_db()
 
 # KNOWLEDGE: Static, curated (table schemas, validated queries, business rules)
+# Uses PostgreSQL with pgvector for embeddings storage
 dash_knowledge = Knowledge(
     name="Dash Knowledge",
     vector_db=PgVector(
-        db_url=db_url,
+        db_url=agent_db_url,
         table_name="dash_knowledge",
         search_type=SearchType.hybrid,
-        embedder=OpenAIEmbedder(id="text-embedding-3-small"),
+        embedder=FastEmbedEmbedder(),
     ),
     contents_db=get_postgres_db(contents_table="dash_knowledge_contents"),
 )
 
 # LEARNINGS: Dynamic, discovered (error patterns, gotchas, user corrections)
+# Uses PostgreSQL with pgvector for embeddings storage
 dash_learnings = Knowledge(
     name="Dash Learnings",
     vector_db=PgVector(
-        db_url=db_url,
+        db_url=agent_db_url,
         table_name="dash_learnings",
         search_type=SearchType.hybrid,
-        embedder=OpenAIEmbedder(id="text-embedding-3-small"),
+        embedder=FastEmbedEmbedder(),
     ),
     contents_db=get_postgres_db(contents_table="dash_learnings_contents"),
 )
@@ -63,10 +65,11 @@ dash_learnings = Knowledge(
 # ============================================================================
 
 save_validated_query = create_save_validated_query_tool(dash_knowledge)
-introspect_schema = create_introspect_schema_tool(db_url)
+introspect_schema = create_introspect_schema_tool(data_db_url)
 
 base_tools: list = [
-    SQLTools(db_url=db_url),
+    # SQLTools uses SQL Server for data queries
+    SQLTools(db_url=data_db_url),
     save_validated_query,
     introspect_schema,
     MCPTools(url=f"https://mcp.exa.ai/mcp?exaApiKey={getenv('EXA_API_KEY', '')}&tools=web_search_exa"),
@@ -142,12 +145,17 @@ save_learning(
 | "Hamilton: 11 wins" | "Hamilton won 11 of 21 races (52%) — 7 more than Bottas" |
 | "Schumacher: 7 titles" | "Schumacher's 7 titles stood for 15 years until Hamilton matched it" |
 
-## SQL Rules
+## SQL Rules (SQL Server / T-SQL)
 
-- LIMIT 50 by default
+- Use TOP 50 instead of LIMIT (e.g., SELECT TOP 50 column FROM table)
 - Never SELECT * — specify columns
 - ORDER BY for top-N queries
 - No DROP, DELETE, UPDATE, INSERT
+- Use CONVERT() or CAST() for date conversions, not TO_DATE()
+- Use DATEPART() or YEAR()/MONTH()/DAY() for date extraction, not EXTRACT()
+- Use + for string concatenation, not ||
+- Use ISNULL() instead of COALESCE() when possible
+- Use square brackets [column] for reserved words
 
 ---
 
@@ -165,7 +173,7 @@ save_learning(
 
 dash = Agent(
     name="Dash",
-    model=OpenAIResponses(id="gpt-5.2"),
+    model=Claude(id="claude-sonnet-4-20250514"),
     db=agent_db,
     instructions=INSTRUCTIONS,
     # Knowledge (static)
@@ -196,4 +204,4 @@ reasoning_dash = dash.deep_copy(
 )
 
 if __name__ == "__main__":
-    dash.print_response("Who won the most races in 2019?", stream=True)
+    dash.print_response("What tables are available and what data do they contain?", stream=True)
