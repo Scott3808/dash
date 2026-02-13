@@ -1,10 +1,11 @@
 chat:
   quick_prompts:
     dash:
-      - "Tell me about yourself"
-      - "Who won the most races in 2019?"
-      - "Who won the most F1 World Championships?"
+      - "What tables and views are available?"
+      - "Show me today's haul truck cycle counts by machine"
+      - "Which trucks had the most delays this week?"
+      - "What's the average cycle time by destination?"
     reasoning-dash:
-      - "Tell me about yourself"
-      - "Who won the most races in 2019?"
-      - "Who won the most F1 World Championships?"
+      - "What tables and views are available?"
+      - "Analyse production trends over the last 30 days"
+      - "Compare operator performance across shifts"

@@ -1,55 +1,37 @@
+# =============================================================================
+# Dash Local Stack — Ollama + SQL Server + pgvector
+# =============================================================================
+#
+# Usage:
+#   docker compose up -d          # Start pgvector (agent DB)
+#   python -m dash                # CLI mode (connects to Ollama + SQL Server on host)
+#   python -m dash.agents         # Quick test
+#
+# Prerequisites on Windows host:
+#   - Ollama running at http://localhost:11434 with qwen3:14b pulled
+#   - SQL Server instance with mshist database accessible via Windows Auth
+#
+# =============================================================================
+
 services:
+  # Agent state & vector storage (knowledge, learnings, chat history)
   dash-db:
     image: agnohq/pgvector:18
     container_name: dash-db
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "${AGENT_DB_PORT:-5532}:5432"
     volumes:
       - pgdata:/var/lib/postgresql
     environment:
-      POSTGRES_USER: ${DB_USER:-ai}
-      POSTGRES_PASSWORD: ${DB_PASS:-ai}
-      POSTGRES_DB: ${DB_DATABASE:-ai}
+      POSTGRES_USER: ${AGENT_DB_USER:-ai}
+      POSTGRES_PASSWORD: ${AGENT_DB_PASS:-ai}
+      POSTGRES_DB: ${AGENT_DB_DATABASE:-dash}
     networks:
       - dash
-
-  dash-api:
-    container_name: dash-api
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: ${IMAGE_NAME:-dash}:${IMAGE_TAG:-latest}
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    volumes:
-      - .:/app
-      - dash-data:/data
-    environment:
-      DATA_DIR: /data
-      RUNTIME_ENV: dev
-      AGNO_DEBUG: "True"
-      DB_HOST: dash-db
-      DB_PORT: 5432
-      DB_USER: ${DB_USER:-ai}
-      DB_PASS: ${DB_PASS:-ai}
-      DB_DATABASE: ${DB_DATABASE:-ai}
-      WAIT_FOR_DB: "True"
-      PRINT_ENV_ON_LOAD: "True"
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      EXA_API_KEY: ${EXA_API_KEY:-}
-    depends_on:
-      - dash-db
-    networks:
-      - dash
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
 networks:
   dash:
 
 volumes:
   pgdata:
-  dash-data:

@@ -20,31 +20,45 @@ load_dotenv()
 def build_data_db_url() -> str:
     """Build SQL Server connection URL for data queries.
 
+    Supports both SQL Server Authentication and Windows Authentication.
+    For Windows Auth, set DATA_DB_TRUSTED_CONNECTION=yes and leave USER/PASS empty.
+
     Environment variables:
         DATA_DB_DRIVER: SQLAlchemy driver (default: mssql+pyodbc)
         DATA_DB_HOST: Database host
         DATA_DB_PORT: Database port (default: 1433)
-        DATA_DB_USER: Database user
-        DATA_DB_PASS: Database password
+        DATA_DB_USER: Database user (leave empty for Windows Auth)
+        DATA_DB_PASS: Database password (leave empty for Windows Auth)
         DATA_DB_DATABASE: Database name
         DATA_DB_ODBC_DRIVER: ODBC driver name (default: ODBC Driver 17 for SQL Server)
+        DATA_DB_TRUSTED_CONNECTION: Set to 'yes' for Windows Authentication
     """
     driver = getenv("DATA_DB_DRIVER", "mssql+pyodbc")
     host = getenv("DATA_DB_HOST", "localhost")
     port = getenv("DATA_DB_PORT", "1433")
-    user = getenv("DATA_DB_USER", "sa")
+    user = getenv("DATA_DB_USER", "")
     password = quote(getenv("DATA_DB_PASS", ""), safe="")
     database = getenv("DATA_DB_DATABASE", "master")
     odbc_driver = getenv("DATA_DB_ODBC_DRIVER", "ODBC Driver 17 for SQL Server")
+    trusted = getenv("DATA_DB_TRUSTED_CONNECTION", "").lower()
 
-    # Build base URL
-    base_url = f"{driver}://{user}:{password}@{host}:{port}/{database}"
-
-    # Add ODBC driver for pyodbc connections
     if "pyodbc" in driver:
         odbc_driver_encoded = quote(odbc_driver, safe="")
+
+        if trusted == "yes":
+            # Windows Authentication — no user/pass in URL
+            return (
+                f"{driver}://@{host}:{port}/{database}"
+                f"?driver={odbc_driver_encoded}"
+                f"&Trusted_Connection=yes"
+            )
+
+        # SQL Server Authentication
+        base_url = f"{driver}://{user}:{password}@{host}:{port}/{database}"
         return f"{base_url}?driver={odbc_driver_encoded}"
 
+    # Non-pyodbc drivers
+    base_url = f"{driver}://{user}:{password}@{host}:{port}/{database}"
     return base_url
 
 

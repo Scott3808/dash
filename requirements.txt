@@ -2,6 +2,7 @@
 #    ./scripts/generate_requirements.sh upgrade
 agno==2.4.7
 agno-infra==1.0.7
+ollama==0.4.8
 annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.12.1
